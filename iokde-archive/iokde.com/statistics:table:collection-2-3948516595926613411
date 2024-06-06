@@ -1,0 +1,27 @@
+statistics:table:collection-2-3948516595926613411
+
+wget --mirror -p --convert-links -P ./iokde-archive https//localhost:9009/archives.html
+
+
+
+?x-image-process=image/format,png
+
+
+https://static-test-dsp.qm989.com/pri-promote-creativity/images/a6fb3b301e894ba2a0302af8f5e387da.jpg  53kb 
+https://static-test-dsp.qm989.com/pri-promote-creativity/images/a6fb3b301e894ba2a0302af8f5e387da.jpg?x-image-process=image/format,webp  32kb 
+
+ 
+https://static-test-dsp.qm989.com/pri-promote-creativity/images/a43a6939a83a4be4a2c3a9c303415d0d.png 118kb
+https://static-test-dsp.qm989.com/pri-promote-creativity/images/a43a6939a83a4be4a2c3a9c303415d0d.png?x-image-process=image/format,webp 78kb
+
+
+gif 转 webp 是否会变大? 
+
+https://static-test-dsp.qm989.com/pri-promote-creativity/images/7daf3229ad154b6b87efce546432f1d0.gif  154k
+https://static-test-dsp.qm989.com/pri-promote-creativity/images/7daf3229ad154b6b87efce546432f1d0.gif?x-image-process=image/format,webp  391kb 
+
+
+
+https://api-qmdsp.qimao.com/common/tools/download/temp/pri-promote-creativity/images/75c2b6a12662412bb0f3c52c122537e9.gif 5.5Mb
+https://api-qmdsp.qimao.com/common/tools/download/temp/pri-promote-creativity/images/75c2b6a12662412bb0f3c52c122537e9.gif?x-image-process=image/format,webp  5.5mb
+

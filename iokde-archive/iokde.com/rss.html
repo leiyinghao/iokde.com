@@ -1,0 +1,1091 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+    <channel>
+        <title>Lavin's Blog</title>
+        <link>https://iokde.com</link>
+        <description>活到老，学到老</description>
+        <atom:link href="https://iokde.com/rss.html" rel="self" />
+        <atom:link href="" rel="hub" />
+        <language>zh-CN</language>
+        <lastBuildDate>Tue, 04 Jun 2024 14:39:58 +0800</lastBuildDate>
+        
+        <item>
+            <title>Redis 作为文档数据库</title>
+            <link>https://iokde.com/post/redis-document-database.html</link>
+            <comments>https://iokde.com/post/redis-document-database.html#comments</comments>
+            <guid>https://iokde.com/post/redis-document-database.html</guid>
+            <description>
+                <![CDATA[<blockquote>
+<p>Redis作为文档数据库</p>
+
+<pre><code> FT.CREATE idx:bicycle ON JSON 
+PREFIX 1 bicycle: SCORE 1.0 
+SCHEMA 
+$.brand AS brand TEXT WEIGHT 1.0 
+$.model AS model TEXT WEIGHT 1.0 
+$.description AS description TEXT WEIGHT 1.0 
+$.price AS price NUMERIC 
+$.condition AS condition TAG SEPARATOR ,
+</code></pre>
+
+<p>这个命令是用于在 Redis Stack 中的 RediSearch 模块创建一个全文索引的，具体是用来索引 JSON 格式的文档。下面是命令的详细解释：</p>
+
+<pre><code>•   FT.CREATE idx:bicycle ON JSON: 这部分命令是创建一个全文索引的起始，idx:bicycle 是你要给这个索引指定的名字，ON JSON 表示这个索引将用于索引 JSON 类型的数据。
+•   PREFIX 1 bicycle:: PREFIX 参数指定了被索引的键的前缀。在这个例子中，所有键以 bicycle: 开头的 JSON 文档都将被包含在这个索引中。数字 1 表示前缀的长度。
+•   SCORE 1.0: SCORE 参数设置了默认的文档评分因子。在这个上下文中，每个文档的基础分数为 1.0，可以根据查询时的匹配情况进一步调整。
+•   SCHEMA: 这里开始定义索引的架构，即指定哪些 JSON 字段需要被索引以及如何索引它们。
+•   $.brand AS brand TEXT WEIGHT 1.0: 这行表示从 JSON 对象中提取 $[&quot;brand&quot;] 字段作为 brand，类型为文本（TEXT），并给予它权重 1.0。权重影响搜索结果的相关性排名，值越高代表该字段越重要。
+•   $.model AS model TEXT WEIGHT 1.0: 同上，但针对的是 $[&quot;model&quot;] 字段，也赋予了相同的权重。
+•   $.description AS description TEXT WEIGHT 1.0: 对于 $[&quot;description&quot;] 字段进行相同处理。
+•   $.price AS price NUMERIC: $[&quot;price&quot;] 字段被索引为数值类型（NUMERIC），这种类型通常用于范围查询或排序。
+•   $.condition AS condition TAG SEPARATOR ,: $[&quot;condition&quot;] 字段被索引为标签（TAG）类型，适用于枚举或分类数据。SEPARATOR , 指定了当字段值为多个标签时，使用逗号作为分隔符。
+</code></pre>
+
+<p>综上所述，这个命令创建了一个名为 idx:bicycle 的全文索引，用于索引所有以 bicycle: 为前缀的 JSON 文档中的特定字段，以便之后可以高效地执行基于这些字段的全文搜索、过滤和排序操作。</p>
+
+<p>向redis-stack 插入对应的数据</p>
+
+<pre><code> JSON.SET &quot;bicycle:0&quot; &quot;.&quot; &quot;{\&quot;brand\&quot;: \&quot;Velorim\&quot;, \&quot;model\&quot;: \&quot;Jigger\&quot;, \&quot;price\&quot;: 270, \&quot;description\&quot;: \&quot;Small and powerful, the Jigger is the best ride for the smallest of tikes! This is the tiniest kids\\u2019 pedal bike on the market available without a coaster brake, the Jigger is the vehicle of choice for the rare tenacious little rider raring to go.\&quot;, \&quot;condition\&quot;: \&quot;new\&quot;}&quot;
+ JSON.SET &quot;bicycle:1&quot; &quot;.&quot; &quot;{\&quot;brand\&quot;: \&quot;Bicyk\&quot;, \&quot;model\&quot;: \&quot;Hillcraft\&quot;, \&quot;price\&quot;: 1200, \&quot;description\&quot;: \&quot;Kids want to ride with as little weight as possible. Especially on an incline! They may be at the age when a 27.5\\\&quot; wheel bike is just too clumsy coming off a 24\\\&quot; bike. The Hillcraft 26 is just the solution they need!\&quot;, \&quot;condition\&quot;: \&quot;used\&quot;}&quot;
+ JSON.SET &quot;bicycle:2&quot; &quot;.&quot; &quot;{\&quot;brand\&quot;: \&quot;Nord\&quot;, \&quot;model\&quot;: \&quot;Cho air 5\&quot;, \&quot;price\&quot;: 815, \&quot;description\&quot;: \&quot;The Cho Air 5  gives kids aged six years and older a durable and uberlight mountain bike for their first experience on tracks and easy cruising through forests and fields. The lower  top tube makes it easy to mount and dismount in any situation, giving your kids greater safety on the trails.\&quot;, \&quot;condition\&quot;: \&quot;used\&quot;}&quot;
+ JSON.SET &quot;bicycle:3&quot; &quot;.&quot; &quot;{\&quot;brand\&quot;: \&quot;Eva\&quot;, \&quot;model\&quot;: \&quot;Eva 291\&quot;, \&quot;price\&quot;: 3400, \&quot;description\&quot;: \&quot;The sister company to Nord, Eva launched in 2005 as the first and only women-dedicated bicycle brand. Designed by women for women, allEva bikes are optimized for the feminine physique using analytics from a body metrics database. If you like 29ers, try the Eva 291. It\\u2019s a brand new bike for 2022.. This full-suspension, cross-country ride has been designed for velocity. The 291 has 100mm of front and rear travel, a superlight aluminum frame and fast-rolling 29-inch wheels. Yippee!\&quot;, \&quot;condition\&quot;: \&quot;used\&quot;}&quot;
+ JSON.SET &quot;bicycle:4&quot; &quot;.&quot; &quot;{\&quot;brand\&quot;: \&quot;Na Bikes\&quot;, \&quot;model\&quot;: \&quot;Kahuna\&quot;, \&quot;price\&quot;: 3200, \&quot;description\&quot;: \&quot;Whether you want to try your hand at XC racing or are loing for a lively trail bike that's just as inspiring on the climbs as it is over rougher ground, the Wilder is one heck of a bike built specifically for short women. Both the frames and components have been tweaked to include a women\\u2019s saddle, different bars and unique colourway.\&quot;, \&quot;condition\&quot;: \&quot;used\&quot;}&quot;
+ JSON.SET &quot;bicycle:5&quot; &quot;.&quot; &quot;{\&quot;brand\&quot;: \&quot;Breakout\&quot;, \&quot;model\&quot;: \&quot;XBN 2.1 Alloy\&quot;, \&quot;price\&quot;: 810, \&quot;description\&quot;: \&quot;The XBN 2.1 Alloy is our entry-level road bike \\u2013 but that\\u2019s not to say that it\\u2019s a basic machine. With an internal weld aluminium frame, a full carbon fork, and the slick-shifting Claris gears from Shimano\\u2019s, this is a bike which doesn\\u2019t break the bank and delivers craved performance.\&quot;, \&quot;condition\&quot;: \&quot;new\&quot;}&quot;
+ JSON.SET &quot;bicycle:6&quot; &quot;.&quot; &quot;{\&quot;brand\&quot;: \&quot;ScramBikes\&quot;, \&quot;model\&quot;: \&quot;WattBike\&quot;, \&quot;price\&quot;: 2300, \&quot;description\&quot;: \&quot;The WattBike is the best e-bike for people who still feel young at heart. It has a Bafang 1000W mid-drive system and a 48V 17.5AH Samsung Lithium-Ion battery, allowing you to ride for more than 60 miles on one charge. It\\u2019s great for tackling hilly terrain or if you just fancy a more leisurely ride. With three working modes, you can choose between E-bike, assisted bicycle, and normal bike modes.\&quot;, \&quot;condition\&quot;: \&quot;new\&quot;}&quot;
+ JSON.SET &quot;bicycle:7&quot; &quot;.&quot; &quot;{\&quot;brand\&quot;: \&quot;Peaknetic\&quot;, \&quot;model\&quot;: \&quot;Secto\&quot;, \&quot;price\&quot;: 430, \&quot;description\&quot;: \&quot;If you struggle with stiff fingers or a kinked neck or back after a few minutes on the road, this lightweight, aluminum bike alleviates those issues and allows you to enjoy the ride. From the ergonomic grips to the lumbar-supporting seat position, the Roll Low-Entry offers incredible comfort. The rear-inclined seat tube facilitates stability by allowing you to put a foot on the ground to balance at a stop, and the low step-over frame makes it accessible for all ability and mobility levels. The saddle is very soft, with a wide back to support your hip joints and a cutout in the center to redistribute that pressure. Rim brakes deliver satisfactory braking control, and the wide tires provide a smooth, stable ride on paved roads and gravel. Rack and fender mounts facilitate setting up the Roll Low-Entry as your preferred commuter, and the BMX-like handlebar offers space for mounting a flashlight, bell, or phone holder.\&quot;, \&quot;condition\&quot;: \&quot;new\&quot;}&quot;
+ JSON.SET &quot;bicycle:8&quot; &quot;.&quot; &quot;{\&quot;brand\&quot;: \&quot;nHill\&quot;, \&quot;model\&quot;: \&quot;Summit\&quot;, \&quot;price\&quot;: 1200, \&quot;description\&quot;: \&quot;This budget mountain bike from nHill performs well both on bike paths and on the trail. The fork with 100mm of travel absorbs rough terrain. Fat Kenda Booster tires give you grip in corners and on wet trails. The Shimano Tourney drivetrain offered enough gears for finding a comfortable pace to ride uphill, and the Tektro hydraulic disc brakes break smoothly. Whether you want an affordable bike that you can take to work, but also take trail in mountains on the weekends or you\\u2019re just after a stable, comfortable ride for the bike path, the Summit gives a good value for money.\&quot;, \&quot;condition\&quot;: \&quot;new\&quot;}&quot;
+ JSON.SET &quot;bicycle:9&quot; &quot;.&quot; &quot;{\&quot;model\&quot;: \&quot;ThrillCycle\&quot;, \&quot;brand\&quot;: \&quot;BikeShind\&quot;, \&quot;price\&quot;: 815, \&quot;description\&quot;: \&quot;An artsy,  retro-inspired bicycle that\\u2019s as functional as it is pretty: The ThrillCycle steel frame offers a smooth ride. A 9-speed drivetrain has enough gears for coasting in the city, but we wouldn\\u2019t suggest taking it to the mountains. Fenders protect you from mud, and a rear basket lets you transport groceries, flowers and bos. The ThrillCycle comes with a limited lifetime warranty, so this little guy will last you long past graduation.\&quot;, \&quot;condition\&quot;: \&quot;refurbished\&quot;}&quot;
+</code></pre>
+
+<p>原文：<a href="https://redis.io/docs/latest/develop/get-started/document-database/" rel="nofollow">https://redis.io/docs/latest/develop/get-started/document-database/</a></p>
+<p>本文链接：<a href="https://iokde.com/post/redis-document-database.html">https://iokde.com/post/redis-document-database.html</a>，<a href="https://iokde.com/post/redis-document-database.html#comments">参与评论 »</a></p>]]>
+            </description>
+        </item>
+        
+        <item>
+            <title>mysql</title>
+            <link>https://iokde.com/post/mysql.html</link>
+            <comments>https://iokde.com/post/mysql.html#comments</comments>
+            <guid>https://iokde.com/post/mysql.html</guid>
+            <description>
+                <![CDATA[<blockquote>
+<p>mysqldump: [Warning] Using a password on the command line interface can be insecure.
+Warning: A partial dump from a server that has GTIDs will by default include the GTIDs of all transactions, even those that changed suppressed parts of the database. If you don’t want to restore GTIDs, pass –set-gtid-purged=OFF. To make a complete dump, pass –all-databases –triggers –routines –events.
+Warning: A dump from a server that has GTIDs enabled will by default include the GTIDs of all transactions, even those that were executed during its extraction and might not be represented in the dumped data. This might result in an inconsistent data dump.
+In order to ensure a consistent backup of the database, pass –single-transaction or –lock-all-tables or –master-data.</p>
+
+<p>这个提示包含了几个重要的信息点，都是关于使用mysqldump命令备份MySQL数据库时的警告和建议：</p>
+
+<pre><code>1.  密码安全警告：“mysqldump: [Warning] Using a password on the command line interface can be insecure.” 这意味着你在命令行中直接使用了密码参数来执行mysqldump。虽然这样可以方便操作，但存在安全隐患，因为其他用户可能通过系统日志或者其他方式查看到你的密码。为提高安全性，建议使用配置文件存储凭据，或者通过SSH隧道等方式进行安全连接。
+2.  GTID（全局事务标识符）警告：
+•   第一个警告提到，如果你的服务器启用了GTID，并且你只进行了部分数据库的导出，导出的备份将包含所有事务的GTID，即使这些事务影响的是未被导出的部分。这可能导致恢复时的混淆。为避免此问题，如果不需要恢复GTID，可以添加--set-gtid-purged=OFF选项。
+•   第二个GTID警告指出，如果在导出过程中服务器有新的事务发生（特别是那些在导出期间执行但未包含在导出数据中的事务），默认情况下它们的GTID也会被包含在备份中，这可能导致数据不一致。这是因为在恢复时，那些额外的GTID可能会导致错误或冲突。
+3.  确保数据一致性建议：“In order to ensure a consistent backup of the database, pass –single-transaction or –lock-all-tables or –master-data.” 这意味着为了获得一个一致性的数据库备份，你应该根据具体情况选择使用以下一个或多个选项：
+•   --single-transaction：适用于支持事务的存储引擎（如InnoDB），它会在开始导出前启动一个事务，从而“冻结”数据库视图，确保导出过程中数据的一致性。这是最不干扰线上服务的方法，因为它不会锁定表。
+•   --lock-all-tables：会锁住所有表以确保导出时的数据一致性，但这会阻止其他任何写操作，适合于那些不支持事务的存储引擎或需要绝对数据静止状态的情况。
+•   --master-data[=1]：在备份时会记录当前的二进制日志文件名和位置，这对于主从复制的设置特别有用，能帮助恢复后保持同步。但这不直接提供事务一致性，可能需要结合其他选项使用。
+</code></pre>
+
+<p>综上所述，这些警告提醒你需要根据你的具体需求和环境，谨慎选择mysqldump的使用方式，以确保既能安全又高效地完成数据库备份。</p>
+
+<p>Mysql 的 GTID（全局事务标识符） 有什么用</p>
+
+<p>MySQL 中的 GTID（全局事务标识符，Global Transaction Identifier）是一种先进的数据复制技术，自 MySQL 5.6 版本开始引入并逐步完善，旨在增强数据库复制的可靠性和简化管理复杂度。GTID 的主要作用和优势包括：</p>
+
+<pre><code>1.  简化主从复制配置与维护：传统的 MySQL 复制需要手动记录二进制日志文件名和偏移量，而 GTID 自动为每个已提交的事务分配一个全局唯一的 ID，无论这个事务发生在哪个服务器上。这意味着在配置和维护复制链路时，不再需要手动指定日志文件和偏移量，大大简化了主从复制的设置和故障转移过程。
+2.  提高复制可靠性：GTID 能够确保所有在主服务器上提交的事务都准确无误地在从服务器上执行，从而提高了数据复制的一致性和可靠性。如果主从数据不一致，可以通过对比 GTID 集来快速定位差异，便于修复。
+3.  简化故障恢复和切换：在发生主服务器故障时，可以快速识别出最新的事务状态，并基于 GTID 集选择最新的从服务器晋升为主服务器，无需手动比对二进制日志，缩短了故障恢复时间。
+4.  支持自动故障恢复和高可用方案：与一些高可用软件（如 MySQL Group Replication 或者 MySQL InnoDB Cluster）结合时，GTID 可以让系统自动检测故障并执行主从切换，实现零停机时间。
+5.  易于监控和诊断：GTID 提供了一种直接的方式来跟踪和监控数据库的复制状态，使得排查复制延迟或中断问题变得更加直观和高效。
+6.  支持更灵活的复制拓扑：GTID 支持多源复制和级联复制等更复杂的复制拓扑结构，使得数据可以在多个服务器间灵活流动，满足不同应用场景的需求。
+</code></pre>
+
+<p>总之，GTID 是 MySQL 数据库复制机制的一大进步，它通过提供一种全局统一的事务追踪方式，显著提升了数据库复制的效率、可靠性和可管理性。</p>
+<p>本文链接：<a href="https://iokde.com/post/mysql.html">https://iokde.com/post/mysql.html</a>，<a href="https://iokde.com/post/mysql.html#comments">参与评论 »</a></p>]]>
+            </description>
+        </item>
+        
+        <item>
+            <title>redis 报错"Please use EVAL instead of EVALSHA for debugging"</title>
+            <link>https://iokde.com/post/redis-use-eval-insteadof-evalsha-for-debugging.html</link>
+            <comments>https://iokde.com/post/redis-use-eval-insteadof-evalsha-for-debugging.html#comments</comments>
+            <guid>https://iokde.com/post/redis-use-eval-insteadof-evalsha-for-debugging.html</guid>
+            <description>
+                <![CDATA[<blockquote>
+<p>某个项目需求需要调试下 lua 代码，调试完成后，启动其他项目发现报错，项目一直在提示&rdquo;Please use EVAL instead of EVALSHA for debugging&rdquo;; 开始以为运维配置做了升级，运维回复最近并没有变更配置；</p>
+
+<p>全局搜了下使用的 client 包发现没有这个你 error， 后转向 google， 终于有了两条可怜巴巴的结果，一看就是 redis 源码，一个位于<a href="https://download.redis.io/redis-stable/src/eval.c" rel="nofollow">https://download.redis.io/redis-stable/src/eval.c</a> 另一条位于 <a href="https://github.com/pmem/pmem-redis/blob/master/src/scripting.c" rel="nofollow">https://github.com/pmem/pmem-redis/blob/master/src/scripting.c</a>  ( 因为版本不同，路径也不相同)</p>
+
+<p>到此，问题基本定位，是 redis 服务器返回的错误，看来只能翻阅源码来解决这个问题；去 github 下载了源码;然后开始后续的求医问药模式；</p>
+
+<pre><code>void evalShaCommand(client *c) {
+    if (sdslen(c-&gt;argv[1]-&gt;ptr) != 40) {
+        /* We know that a match is not possible if the provided SHA is
+         * not the right length. So we return an error ASAP, this way
+         * evalGenericCommand() can be implemented without string length
+         * sanity check */
+        addReply(c, shared.noscripterr);
+        return;
+    }
+    if (!(c-&gt;flags &amp; CLIENT_LUA_DEBUG))
+        evalGenericCommand(c,1);
+    else {
+        addReplyError(c,&quot;Please use EVAL instead of EVALSHA for debugging&quot;);
+        return;
+    }
+}
+</code></pre>
+
+<p>代码只出现在这个位置，灵码给出的解释如下：
+这个函数定义了一个名为 evalShaCommand 的函数，它没有返回值（void 类型）。该函数接收一个类型为 client 的指针参数 c，表示客户端连接对象。检查输入SHA的长度：</p>
+
+<pre><code>   if (sdslen(c-&gt;argv[1]-&gt;ptr) != 40) {
+       /* ... */
+   }
+</code></pre>
+
+<p>函数首先检查客户端请求中的第二个参数（c-&gt;argv[1]）的字符串长度（通过 sdslen 函数计算）。如果长度不等于 40 字节，说明提供的SHA（可能是脚本的SHA1校验和）不是正确的长度，不可能与已存储脚本匹配。在这种情况下，函数执行以下操作：
+发送一个预定义的错误回复给客户端（通过 addReply 函数），内容存储在全局变量 shared.noscripterr 中。
+直接返回，结束函数执行，不继续处理此次请求。
+这样做可以尽早返回错误，避免在 evalGenericCommand 中进行不必要的字符串长度检查。
+判断是否处于调试模式：函数检查 client 对象 c 的标志位（flags）是否包含 CLIENT_LUA_DEBUG 标志。如果未设置此标志<strong>（即不在调试模式下），</strong>则调用 evalGenericCommand 函数处理请求，传入参数 c 和整数 1。
+如果 CLIENT_LUA_DEBUG 标志被设置（客户端正处于调试模式），函数执行以下操作：
+向客户端发送一个错误消息（通过 addReplyError 函数），提示用户在调试时应使用 EVAL 命令而非 EVALSHA。
+返回，结束函数执行。
+总结来说，evalShaCommand 函数处理客户端对 EVALSHA 命令的请求。它首先检查提供的SHA字符串长度是否为40字节，若不符合则立即返回错误。然后根据客户端是否处于调试模式来决定执行相应的操作：非调试模式下调用 evalGenericCommand 继续处理请求；调试模式下则向客户端发送错误提示，建议使用 EVAL 命令。</p>
+
+<hr />
+
+<p>大模型给的提示是以为我们处于调试模式，原因基本定位； 昨天调试代码的时候使用了redis    &ndash;ldb-sync-mode &ndash;eval  ./a.lua  可能是服务器不支持 lua的 ldb 调试，异常退出后就一直 处于这个 debug 模式； 那么下一步就是想法让 redis server 关闭这个 debug 模式；</p>
+
+<p>为此我们看看 c-&gt;flags &amp; CLIENT_LUA_DEBUG 是那里赋值的；</p>
+
+<p>全局搜索对应变量后，找到了这行 ，真是欣喜若狂啊 ；</p>
+
+<pre><code>void ldbDisable(client *c) {
+    c-&gt;flags &amp;= ~(CLIENT_LUA_DEBUG|CLIENT_LUA_DEBUG_SYNC);
+}
+</code></pre>
+
+<p>接下来想到的是看看哪个 command 调用了这个函数； 再次定位到命令位于</p>
+
+<pre><code>void scriptCommand(client *c) {}  // 这个函数中的如下部分
+
+
+        if (!strcasecmp(c-&gt;argv[2]-&gt;ptr,&quot;no&quot;)) {
+            ldbDisable(c);
+            addReply(c,shared.ok);
+        } 
+</code></pre>
+
+<p>这个时候我想起了 redis-cli &ndash;help</p>
+
+<p>本以为 这个 help 里面包含对应的关闭提示，结果试了半天还是失败； 于是再次请教大模型</p>
+
+<pre><code> if (c-&gt;argc == 3 &amp;&amp; !strcasecmp(c-&gt;argv[1]-&gt;ptr,&quot;debug&quot;)) {
+        if (clientHasPendingReplies(c)) {
+            addReplyError(c,&quot;SCRIPT DEBUG must be called outside a pipeline&quot;);
+            return;
+        }
+        if (!strcasecmp(c-&gt;argv[2]-&gt;ptr,&quot;no&quot;)) {
+            ldbDisable(c);
+            addReply(c,shared.ok);
+        } else if (!strcasecmp(c-&gt;argv[2]-&gt;ptr,&quot;yes&quot;)) {
+            ldbEnable(c);
+            addReply(c,shared.ok);
+        } else if (!strcasecmp(c-&gt;argv[2]-&gt;ptr,&quot;sync&quot;)) {
+            ldbEnable(c);
+            addReply(c,shared.ok);
+            c-&gt;flags |= CLIENT_LUA_DEBUG_SYNC;
+        } else {
+            addReplyError(c,&quot;Use SCRIPT DEBUG yes/sync/no&quot;);
+        }
+    }
+
+这是 redis-cli 源码的一部分 ， 根据代码帮我解决一个问题，输入redis-cli 后面跟什么参数才能关闭 ldb 的 debug 模式 就是让 ldbDisable(c) 执行
+</code></pre>
+
+<p>大模型给出了回复：</p>
+
+<p>要通过 redis-cli 命令行工具关闭 ldb 的 debug 模式（即执行 ldbDisable&copy;），您需要按照以下格式输入命令：</p>
+
+<p>redis-cli script debug no</p>
+
+<p>这里，script debug 是命令主体，表示您要对 Lua 脚本调试功能进行操作。紧跟其后的参数 no 表示您希望关闭（disable）调试模式。根据源码中的逻辑判断，当接收到这样的命令时，程序会执行 ldbDisable&copy; 函数，关闭调试，并向客户端回复一个确认信息（addReply(c, shared.ok)）</p>
+
+<p>果然，在我执行完命令后，成功收到了服务端的响应 ok</p>
+
+<p>此时再次运行本地项目，已经没有报错了；</p>
+
+<p>通过这个问题的解决让我对 redis 又多了一些了解，使用不熟悉的命令尽量在本地多运行调试，使用前尽量了解后遗症； 同时也感受到了大模型功能的强大； 致敬中国的大模型，相信有一天一定能超过国外的这些模型；</p>
+
+<p>在此，也感谢一下某个go 技术群中的大佬提供的思路和文档；</p>
+
+<p><a href="https://redis.io/docs/latest/develop/interact/programmability/lua-debugging/" rel="nofollow">https://redis.io/docs/latest/develop/interact/programmability/lua-debugging/</a>
+当脚本自然终止时，调试会话将结束并以正常的非调试模式返回，在此同步模式下，在调试会话期间将无法访问 Redis 服务器，因此请谨慎使用。写的脚本不正常退出 会搞得云服务也没法访问（应该）抓紧重启将影响降到最小；</p>
+<p>本文链接：<a href="https://iokde.com/post/redis-use-eval-insteadof-evalsha-for-debugging.html">https://iokde.com/post/redis-use-eval-insteadof-evalsha-for-debugging.html</a>，<a href="https://iokde.com/post/redis-use-eval-insteadof-evalsha-for-debugging.html#comments">参与评论 »</a></p>]]>
+            </description>
+        </item>
+        
+        <item>
+            <title>AI-learn-1</title>
+            <link>https://iokde.com/post/Ai-learn-lesson-1.html</link>
+            <comments>https://iokde.com/post/Ai-learn-lesson-1.html#comments</comments>
+            <guid>https://iokde.com/post/Ai-learn-lesson-1.html</guid>
+            <description>
+                <![CDATA[<blockquote>
+<p>【关于人工智能与AI能力定义】</p>
+
+<p>课程中强调：AI能力的定义引发讨论，参与者提出不同的见解，如通过数学模拟人脑神经元、模拟人类思维方式解决问题、替代人类智能执行任务并通过图灵测试。
+早期阶段：计算机刚诞生时因其强大的计算能力被视作“智能”，但随着人们对计算机工作原理的理解加深，单纯计算能力强不再被视为人工智能。
+发展历程：从计算智能时代到深度学习时代的跨越，特别是近十年内，诸如语音识别、人脸识别等技术逐渐成熟并广泛应用，而如今它们已不再被视为新颖的人工智能应用。
+【AI技术在现实生活中的应用实例】</p>
+
+<p>Alphago事件：作为通用智能的显著例证，其强大的搜索能力和深度学习算法使其在围棋等领域超越人类，标志着人工智能在复杂决策和策略规划方面取得突破。
+聊天机器人（例如CPT）的应用：
+文字生成能力：CPT在各类文本生成任务表现出色，如写作文章、邮件、报告、专利文案等，其效率与质量均超过大部分非专业文字工作者。
+Code Interpreter功能：CPT具备自动生成和运行代码的能力，可以用来处理大量数据分析任务，如对电影数据集进行分析统计，生成简洁易懂的结论。
+【AI应用场景与实践】</p>
+
+<p>实际应用调优：对于复杂业务逻辑，提示词（prompt）的质量直接影响AI处理任务的能力，将在后续课程中详述如何优化prompt。
+隐私与数据安全：针对新发布的code interpreter功能，讲师提醒用户关注数据安全性，指出数据上传后需查看服务协议以确保合规性，并提到可通过私有化部署等方式降低潜在风险。
+【具体应用指导】</p>
+
+<p>人力资源报告分析：利用AI分析人才报告时，可以预先设定评判标准或提供示例案例，引导AI更加严谨地进行分析解读。
+资源优化与落地应用：尽管大型模型在某些特定任务如聚类上可能并非最经济高效的选择，但在分类任务、文本生成等方面具有广泛落地场景。
+【AI助手的角色和使用方式】</p>
+
+<p>角色定义：系统（system）用于传递背景信息和任务描述；Sensent代表AI助手（如CPT）；User代表使用者。虽角色名称不可更改，但用户可以自定义AI助手的名字。
+AI学习助手软件开发：创建学习助手软件需要结合已学知识（如Launch课程），预计开发过程涉及数百至数千行代码，具体实现细节将在后续课程中讨论。
+【硬件成本与优化措施】</p>
+
+<p>计算成本降低：部署大型AI模型如ChatGPT的成本较高，但可以通过多种技术手段如减少显存占用、优化存储结构等来降低成本，同时考虑采用较小规模但仍能满足业务需求的模型（如6B/7B）。</p>
+<p>本文链接：<a href="https://iokde.com/post/Ai-learn-lesson-1.html">https://iokde.com/post/Ai-learn-lesson-1.html</a>，<a href="https://iokde.com/post/Ai-learn-lesson-1.html#comments">参与评论 »</a></p>]]>
+            </description>
+        </item>
+        
+        <item>
+            <title>AI 带我学redis-stack</title>
+            <link>https://iokde.com/post/learn-redis-stack-by-ai.html</link>
+            <comments>https://iokde.com/post/learn-redis-stack-by-ai.html#comments</comments>
+            <guid>https://iokde.com/post/learn-redis-stack-by-ai.html</guid>
+            <description>
+                <![CDATA[<blockquote>
+<p><strong>Q:redis-stack 和  redis-stack-server  有什么区别?</strong>
+A:
+Redis Stack 和 Redis Stack Server 这两个术语在上下文中看似相关但实际上有着不同的含义：</p>
+
+<pre><code>•   Redis Stack:
+</code></pre>
+
+<p>Redis Stack 是指一套集成了多种Redis模块功能的解决方案，旨在为用户提供一站式的Redis体验。它包含了Redis核心数据库，以及一系列官方支持的附加模块，比如RediSearch（全文搜索引擎）、RedisJSON（JSON数据类型支持）、RedisGraph（图形数据库）、RedisTimeSeries（时间序列数据存储）和RedisBloom（概率数据结构）。Redis Stack 通常指的是一个完整的软件堆栈，其中包含了能够支持多种复杂数据结构和高级功能的Redis部署方案。
+    •   Redis Stack Server:
+Redis Stack Server 更具体地指向Redis Stack解决方案中的服务器组件，即包含上述Redis模块集成的服务器实例本身。它可以被视为运行Redis Stack的单一服务单元或容器。在实践中，当你提到redis-stack-server时，很可能是在指代一个打包好的、可以直接部署运行的Redis服务器镜像，这个镜像是专门为了提供Redis Stack的所有功能而构建的。</p>
+
+<p>总结来说，Redis Stack 是一个整体概念，涵盖了多个功能模块集合而成的产品；而 Redis Stack Server 则是实施Redis Stack的单个运行实例或服务程序，它是Redis Stack在具体部署和运行时的表现形式。</p>
+
+<p><strong>Q: docker-stack 安装问题</strong></p>
+
+<blockquote>
+<p>docker run -v /local-data/:/data redis/redis-stack:latest</p>
+</blockquote>
+
+<p>这个命里里面的 -v /local-data 有什么用</p>
+
+<p>A:</p>
+
+<p>在 Docker 中，docker run 命令的 -v 参数用于将宿主机（Host）的一个目录挂载（mount）到容器（Container）内部的一个指定位置。其基本格式为 docker run -v &lt;宿主机路径&gt;:&lt;容器路径&gt; &hellip;。</p>
+
+<p>对于命令：</p>
+
+<pre><code>docker run -v /local-data/:/data redis/redis-stack:latest
+</code></pre>
+
+<p>这里的 -v /local-data/:/data 表示：</p>
+
+<pre><code>•   宿主机路径 /local-data/：这是宿主机上的一个目录，Docker 会将其内容暴露给容器；
+•   容器路径 /data：这是在容器内部的目标路径，容器内部的应用程序将会看到这个路径，而且这个路径下的内容实际上是映射自宿主机的 /local-data/ 目录。
+</code></pre>
+
+<p>这样一来，当你在运行的 Redis Stack 容器内部对 /data 目录下的数据进行任何写入或修改时，这些更改都会同步到宿主机的 /local-data/ 目录。同样地，如果宿主机目录已有内容，这些内容也会在容器启动时立即可见。</p>
+
+<p>这意味着通过这种方式，你可以持久化 Redis Stack 数据，即使容器被删除或重启，存储在 /data 目录下的 Redis 数据也能保留下来，因为它们实际是存放在宿主机硬盘而非容器的临时存储中。这对于需要长期保存和恢复数据的数据库服务（如Redis）尤其重要。</p>
+
+<p><strong>Q：redis-stack 用到的索引方法对比</strong>
+FLAT - Brute force algorithm.</p>
+
+<p>HNSW - Hierarchical Navigable Small World algorithm.   Redis-stack中这两个算法是什么意
+A： 在 Redis Stack 或者更广泛的搜索和索引领域中，FLAT 和 HNSW 分别代表两种不同的搜索算法或索引结构，主要用于处理高维向量空间内的相似性搜索（如近似最近邻搜索，Approximate Nearest Neighbor search，简称 ANN）。</p>
+
+<pre><code>1.  FLAT (Brute Force):
+</code></pre>
+
+<p>FLAT 或 Brute Force 算法在处理向量搜索时采取的是最为直接的方式，即针对查询向量，遍历整个向量集合，计算查询向量与集合中每个向量之间的距离（如欧氏距离、余弦相似度等），然后找出最接近查询向量的那些元素。这种方法简单直接，但是效率较低，尤其是当数据集非常大时，查找成本随数据量线性增长。
+    2.  HNSW (Hierarchical Navigable Small World):
+HNSW 是一种高效的近似最近邻搜索算法，它的核心思想是构建一个多层的层次式结构，通过引入邻居节点的层次网络来加速搜索过程。在这种结构中，每个向量都有多个层级的邻居节点，而每一层的邻居节点都是经过精心挑选，以便快速引导搜索过程到达目标区域。相比于 FLAT 算法，HNSW 利用启发式搜索策略大大减少了不必要的距离计算，从而在保证一定精度的前提下极大地提升了大规模数据集上的搜索速度。</p>
+
+<p>在 Redis Stack 中，虽然Redis原生并不直接支持这些搜索算法，但结合诸如RediSearch或其他相关的Redis模块，可以利用插件或者外部索引引擎来实现这两种搜索策略。尤其是在处理大量向量数据，需要快速查找相似项时，HNSW这样的高效索引结构往往作为提升查询性能的重要手段。</p>
+
+<p><strong>Q：怎么理解下面这段文本</strong></p>
+
+<p>K-nearest neighbors (KNN) search and range filter (from v2.6.1) supporting three distance metrics to measure the degree of similarity between two vectors , where is the length of the vectors:</p>
+
+<p>L2 - Euclidean distance between two vectors</p>
+
+<p>IP - Inner product of two vectors</p>
+
+<p>COSINE - Cosine distance of two vectors<br />
+A: 这段文本描述了一种支持三种距离度量方法的K-近邻（K-nearest neighbors, KNN）搜索和范围过滤功能，该功能从版本v2.6.1开始可用。在这个上下文中，用户可以根据需求选择不同的距离度量方法来衡量两个向量之间的相似度。这里提到的三个距离度量分别是：</p>
+
+<pre><code>1.  L2 - Euclidean distance between two vectors:
+</code></pre>
+
+<p>L2欧氏距离是通过计算两个向量各元素差的平方和然后再开平方得到的，是最常见的距离度量方式。它衡量的是两个向量在欧几里得空间中的直线距离。
+    2.  IP - Inner product of two vectors:
+向量内积（也称为点积）并非严格意义上的距离度量，但它可以用来衡量两个向量的方向关系。当两个向量正交时，内积为0，表明它们方向完全不同；当内积值接近于两个向量模长的乘积时，表明它们方向相似。在某些特定场景下，通过归一化后，内积可以转化为余弦相似度来表示两个向量的相似度。
+    3.  COSINE - Cosine distance of two vectors:
+余弦距离（Cosine Distance）通常是指余弦相似度的补形式，即1减去余弦相似度。余弦相似度是通过计算两个向量的夹角余弦值来判断它们的方向相似度，而不考虑它们的长度。在高维空间中，尤其在文档相似度、语义相似度等领域，由于不需要归一化向量长度，余弦相似度是一种常用的距离度量方式。</p>
+
+<p>在KNN搜索中，系统会找到与查询向量最近的K个邻居，这里的“最近”就是根据上述三种距离度量方式中的任一种来定义的。同时，范围过滤功能允许用户设定一个距离阈值，返回所有与查询向量距离小于或等于该阈值的邻居。</p>
+<p>本文链接：<a href="https://iokde.com/post/learn-redis-stack-by-ai.html">https://iokde.com/post/learn-redis-stack-by-ai.html</a>，<a href="https://iokde.com/post/learn-redis-stack-by-ai.html#comments">参与评论 »</a></p>]]>
+            </description>
+        </item>
+        
+        <item>
+            <title>AI学习-入门线性代数 </title>
+            <link>https://iokde.com/post/AI-MATH.html</link>
+            <comments>https://iokde.com/post/AI-MATH.html#comments</comments>
+            <guid>https://iokde.com/post/AI-MATH.html</guid>
+            <description>
+                <![CDATA[<blockquote>
+<p><strong>学习线性代数的工具</strong></p>
+
+<ul>
+<li><strong>Python</strong>：Python 是一种流行的编程语言，它提供了许多用于线性代数的库，例如 NumPy 和 SciPy。</li>
+<li><strong>Matplotlib</strong>：Matplotlib 是一个用于创建静态、动画和交互式图形的 Python 库。</li>
+<li><strong>Jupyter Notebook</strong>：Jupyter Notebook 是一个交互式开发环境，它允许你创建和共享包含代码、输出和注释的文档。</li>
+</ul>
+
+<p><strong>线性代数学习教程</strong></p>
+
+<ul>
+<li><strong>3Blue1Brown 的线性代数系列</strong>：3Blue1Brown 的线性代数系列是一个很好的资源，它使用动画和交互式可视化来解释线性代数的概念。</li>
+<li><strong>Khan Academy 的线性代数课程</strong>：Khan Academy 的线性代数课程是一个免费的在线课程，它提供了线性代数的基础知识。</li>
+<li><strong>MIT 的线性代数公开课</strong>：麻省理工学院的线性代数公开课是一个免费的在线课程，它提供了更深入的线性代数知识。</li>
+</ul>
+
+<p><strong>快速入门线性代数</strong></p>
+
+<p>如果你想快速入门线性代数，你可以按照以下步骤进行：</p>
+
+<ol>
+<li>安装 Python 和 NumPy。</li>
+<li>打开 Jupyter Notebook。</li>
+<li>在 Jupyter Notebook 中创建一个新的笔记本。</li>
+<li>在笔记本中输入以下代码：</li>
+</ol>
+
+<pre><code class="language-python">import numpy as np
+
+# 创建一个矩阵
+A = np.array([[1, 2], [3, 4]])
+
+# 打印矩阵
+print(A)
+
+# 计算矩阵的行列式
+det = np.linalg.det(A)
+
+# 打印行列式
+print(det)
+</code></pre>
+
+<ol>
+<li>运行代码。</li>
+</ol>
+
+<p>这段代码将创建一个 2x2 矩阵，并计算它的行列式。你可以通过修改代码来探索线性代数的其他概念。</p>
+<p>本文链接：<a href="https://iokde.com/post/AI-MATH.html">https://iokde.com/post/AI-MATH.html</a>，<a href="https://iokde.com/post/AI-MATH.html#comments">参与评论 »</a></p>]]>
+            </description>
+        </item>
+        
+        <item>
+            <title>mac-m1-m2 nginx修改默认8080端口 到 80</title>
+            <link>https://iokde.com/post/mac-nginx-change-port-80.html</link>
+            <comments>https://iokde.com/post/mac-nginx-change-port-80.html#comments</comments>
+            <guid>https://iokde.com/post/mac-nginx-change-port-80.html</guid>
+            <description>
+                <![CDATA[<blockquote>
+<p>mac 上使用 brew install nginx 后执行 nginx 启动后默认端口是 8080 ，要想修改端口为 80 但是直接修改/etc/apache2/httpd.conf 提示没有权限；</p>
+
+<p>使用 brew info nginx 查看安装信息后，发现配置在  /opt/homebrew/etc/nginx/nginx.conf 这个目录下；
+直接修改 8080 为 80 ，先停止  sudo nginx -s stop 后执行  sudo nginx 启动即可</p>
+<p>本文链接：<a href="https://iokde.com/post/mac-nginx-change-port-80.html">https://iokde.com/post/mac-nginx-change-port-80.html</a>，<a href="https://iokde.com/post/mac-nginx-change-port-80.html#comments">参与评论 »</a></p>]]>
+            </description>
+        </item>
+        
+        <item>
+            <title>macos-mac-m1-外接显示器亮度调剂</title>
+            <link>https://iokde.com/post/mac-monitor.html</link>
+            <comments>https://iokde.com/post/mac-monitor.html#comments</comments>
+            <guid>https://iokde.com/post/mac-monitor.html</guid>
+            <description>
+                <![CDATA[<blockquote>
+<p><a href="https://monitorcontrol.app" rel="nofollow">https://monitorcontrol.app</a>
+今天看到一款可以控制 mac 内置和外接调节显示器亮度的软件，感觉很不错 推荐一下</p>
+<p>本文链接：<a href="https://iokde.com/post/mac-monitor.html">https://iokde.com/post/mac-monitor.html</a>，<a href="https://iokde.com/post/mac-monitor.html#comments">参与评论 »</a></p>]]>
+            </description>
+        </item>
+        
+        <item>
+            <title>grafana指标配置</title>
+            <link>https://iokde.com/post/grafana-metrics-config.html</link>
+            <comments>https://iokde.com/post/grafana-metrics-config.html#comments</comments>
+            <guid>https://iokde.com/post/grafana-metrics-config.html</guid>
+            <description>
+                <![CDATA[<blockquote>
+<p>要在Prometheus和Grafana中编写查询语句来区分带有&rdquo;_req_error&rdquo;标签的指标，你可以使用正则表达式来匹配标签的名称。在Prometheus的查询语句中，你可以使用=~运算符和正则表达式来匹配标签的值。</p>
+
+<p>下面是一个示例查询语句，它将只匹配带有&rdquo;_req_error&rdquo;标签的指标：</p>
+
+<pre><code>sum by (name) (rate(rta_qps{job=&quot;http-monitor-service&quot;, name=~&quot;.*_req_error&quot;}[1m]))
+</code></pre>
+
+<p>在这个查询语句中，name=~&ldquo;.*_req_error&rdquo;部分是用来匹配带有&rdquo;_req_error&rdquo;标签的name值的正则表达式。使用=~运算符可以实现模式匹配。</p>
+
+<p>请注意，在Grafana中配置查询面板时，你需要将上述查询语句添加到指标查询的查询编辑器中，然后将其与其他的配置项（如图表类型、时间范围等）一起保存和应用。这样，你就可以在仪表板上查看只包含带有&rdquo;_req_error&rdquo;标签的指标的数据了。</p>
+
+<p>histogram_quantile(0.95, sum by(le, name) (rate(dsp_server_duration_milliseconds_bucket[1m])))</p>
+
+<p>这个查询语句包含了多个 name 如何筛选 name 匹配rta_*_req_cost 的指标</p>
+
+<p>要筛选匹配&rdquo;rta_*_req_cost&rdquo;的name指标，可以使用正则表达式来过滤name标签。在Prometheus的查询语句中，你可以使用=~运算符和正则表达式来匹配name的值。</p>
+
+<p>下面是一个示例查询语句，它将只匹配name标签匹配&rdquo;rta_*_req_cost&rdquo;的指标：</p>
+
+<pre><code>histogram_quantile(0.95, sum by(le, name) (rate(dsp_server_duration_milliseconds_bucket{job=&quot;http-monitor-service&quot;, name=~&quot;rta_.*_req_cost&quot;}[1m])))
+</code></pre>
+
+<p>在这个查询语句中，name=~&ldquo;rta_.<em>_req<em>cost&rdquo;部分是用来匹配name值符合&rdquo;rta</em></em>_req_cost&rdquo;模式的正则表达式。使用=~运算符可以实现模式匹配。</p>
+
+<p>请注意，上述示例查询语句中的job=&ldquo;http-monitor-service&rdquo;部分是为了限定查询特定的job。你可以根据你的具体情况进行调整或删除。</p>
+
+<p>在Grafana中配置查询面板时，将上述查询语句添加到指标查询的查询编辑器中，并与其他配置项一起保存和应用，以查看匹配&rdquo;rta_*_req_cost&rdquo;的指标数据。</p>
+
+<p>将上门的需求改为 name 不匹配 rta_*_req_cost 的规则后，麻烦给出查询语句</p>
+
+<p>如果你想筛选出不匹配&rdquo;rta_*_req_cost&rdquo;的name指标，你可以使用!~运算符和正则表达式来实现。下面是一个示例查询语句：</p>
+
+<pre><code>histogram_quantile(0.95, sum by(le, name) (rate(dsp_server_duration_milliseconds_bucket{job=&quot;http-monitor-service&quot;, name!~&quot;rta_.*_req_cost&quot;}[1m])))
+</code></pre>
+
+<p>在这个查询语句中，name!~&ldquo;rta_.<em>_req<em>cost&rdquo;部分表示不匹配模式&rdquo;rta</em></em>_req_cost&rdquo;的name值。使用!~运算符可以实现排除匹配的模式。</p>
+
+<p>请注意，上述示例查询语句中的job=&ldquo;http-monitor-service&rdquo;部分是为了限定查询特定的job。你可以根据你的具体情况进行调整或删除。</p>
+
+<p>将上述查询语句添加到Grafana的指标查询的查询编辑器中，并应用到你的仪表板中，就可以查看不匹配&rdquo;rta_*_req_cost&rdquo;的name指标的数据了。</p>
+<p>本文链接：<a href="https://iokde.com/post/grafana-metrics-config.html">https://iokde.com/post/grafana-metrics-config.html</a>，<a href="https://iokde.com/post/grafana-metrics-config.html#comments">参与评论 »</a></p>]]>
+            </description>
+        </item>
+        
+        <item>
+            <title>k8s资源配置 limit 和 request 的区别</title>
+            <link>https://iokde.com/post/k8s-resource-request-limit.html</link>
+            <comments>https://iokde.com/post/k8s-resource-request-limit.html#comments</comments>
+            <guid>https://iokde.com/post/k8s-resource-request-limit.html</guid>
+            <description>
+                <![CDATA[<blockquote>
+<p>k8s 资源配置中有 limit 和 request 区别是什么：
+比如：</p>
+
+<pre><code>resources:
+limits:
+cpu: '2'
+memory: 3Gi
+requests:
+cpu: '2'
+memory: 3Gi
+</code></pre>
+
+<p>在Kubernetes（k8s）中，&rdquo;limits&rdquo;和&rdquo;requests&rdquo;是资源配置中两个重要的属性，用于定义容器在集群中使用的计算资源。</p>
+
+<p>&ldquo;limits&rdquo;表示容器在运行时允许使用的资源的上限，包括CPU和内存。当容器尝试使用超过限制的资源时，Kubernetes可能会限制其访问或终止容器。限制资源的目的是为了确保容器不会无限制地占用集群的资源，以保持整体的可靠性和性能。</p>
+
+<p>&ldquo;requests&rdquo;表示容器启动时对资源的最小需求，包括CPU和内存。Kubernetes使用请求资源来调度和安排容器在节点上的位置。请求资源的目的是为了确保每个节点上的容器能够获得足够的资源来正常运行，同时避免过度分配导致资源浪费。</p>
+
+<p>区别总结如下：
+1. &ldquo;limits&rdquo;是资源使用的上限，而&rdquo;requests&rdquo;是资源的最小需求。
+2. &ldquo;limits&rdquo;用于保护集群免受容器过度使用资源导致的故障，而&rdquo;requests&rdquo;用于确保容器能够正常启动和运行。
+3. &ldquo;limits&rdquo;可以限制容器访问超过限制的资源，而&rdquo;requests&rdquo;对容器的影响是最小需求的保证。
+4. &ldquo;limits&rdquo;和&rdquo;requests&rdquo;可以分别设置CPU和内存等资源的限制和需求。</p>
+
+<p>在您提供的示例中，容器被配置为限制最大使用2个CPU和3Gi内存的资源，同时也请求了最少2个CPU和3Gi内存的资源。这意味着容器在运行时最多可以使用2个CPU和3Gi内存，但在调度和启动时，至少需要2个CPU和3Gi内存才能正常启动。</p>
+<p>本文链接：<a href="https://iokde.com/post/k8s-resource-request-limit.html">https://iokde.com/post/k8s-resource-request-limit.html</a>，<a href="https://iokde.com/post/k8s-resource-request-limit.html#comments">参与评论 »</a></p>]]>
+            </description>
+        </item>
+        
+        <item>
+            <title>sql 如何判断索引存在就删除</title>
+            <link>https://iokde.com/post/sql-drop-index-if-exist.html</link>
+            <comments>https://iokde.com/post/sql-drop-index-if-exist.html#comments</comments>
+            <guid>https://iokde.com/post/sql-drop-index-if-exist.html</guid>
+            <description>
+                <![CDATA[<blockquote>
+<p>您可以使用以下SQL语句来判断xxxx_mapping表中是否存在名为uniq_xxx_mapping__index的索引,如果存在就删除该索引:</p>
+
+<p>DROP INDEX IF EXISTS uniq_ad_xxx__index ON table_name;
+具体步骤:</p>
+
+<p>使用 DROP INDEX IF EXISTS 语句尝试删除名称为 uniq_ad_xxx__index 的索引。</p>
+
+<p>IF EXISTS 表示仅当该索引存在时才执行删除操作,如果索引不存在则不会报错。</p>
+
+<p>指定要删除的索引在表 table_name 上。</p>
+
+<p>这样只需要执行这一条SQL语句,就可以在该索引存在时删除它,如果索引不存在也不会对数据库造成影响。</p>
+
+<p>DROP INDEX的语法非常适合在不确定某索引是否存在的情况下删除它,可以避免索引不存在时产生错误。</p>
+<p>本文链接：<a href="https://iokde.com/post/sql-drop-index-if-exist.html">https://iokde.com/post/sql-drop-index-if-exist.html</a>，<a href="https://iokde.com/post/sql-drop-index-if-exist.html#comments">参与评论 »</a></p>]]>
+            </description>
+        </item>
+        
+        <item>
+            <title>golang-slice为什么要使用 make</title>
+            <link>https://iokde.com/post/golang-make-slice.html</link>
+            <comments>https://iokde.com/post/golang-make-slice.html#comments</comments>
+            <guid>https://iokde.com/post/golang-make-slice.html</guid>
+            <description>
+                <![CDATA[<blockquote>
+<p>Golang中的slice通过make函数进行初始化,make的主要作用如下:</p>
+
+<p>为slice分配内存空间
+通过make可以为slice分配内存,为元素预留存储空间。slice本身只是一个指针,通过make可以让它指向一个已经分配的底层数组。</p>
+
+<p>设置slice长度和容量
+make可以设置slice的长度len和容量cap。len决定当前slice可以存储的元素个数,cap决定slice目前可以使用的内存大小。</p>
+
+<p>不同类型slice初始化
+对不同类型如int、string等都可以通过make初始化对应的slice。</p>
+
+<p>返回slice对象
+make的返回值是一个slice,可以对这个slice直接使用不需要再做初始化。</p>
+
+<p>例如:</p>
+
+<pre><code>s := make([]int, 5) // 分配int切片,长度和容量都是5
+s := make([]string, 3, 5) // 分配string切片,长度3,容量5
+</code></pre>
+
+<p>所以总结来说,make主要用于为slice分配内存,设置其长度和容量,并返回一个已经初始化的slice值,这对slice的使用很重要。只有通过make初始化过后,slice才可以直接使用其内存来存储元素。</p>
+
+<p>golang slice make的length和cap 区别是什么？</p>
+
+<p>Golang slice 的 make 函数可以设置长度 length 和容量 capacity 两个参数。</p>
+
+<p>length:决定当前slice可以存储的元素个数,也就是说可以通过索引 0 ~ length-1 来访问元素。</p>
+
+<p>capacity:决定当前分配的底层数组可以存储的最大元素个数。</p>
+
+<p>两者的区别和联系如下:</p>
+
+<p>length 必须小于等于 capacity。也就是当前slice实际存储的元素不可以超过分配的最大容量。</p>
+
+<p>一般来说,length = capacity。这种情况slice使用的底层数组刚刚好分配了需要的内存。</p>
+
+<p>但也可以 length &lt; capacity。这种情况表示分配的内存比实际需要的大,为后面的内容增加提供了动态扩展的空间。</p>
+
+<p>当通过append等操作增加元素时,如果当前length == capacity,会自动的resize底层数组,增加实际分配的内存大小。</p>
+
+<p>capacity 也决定了slice可以通过 append 扩展的范围。只有在 length &lt; capacity 时,append 才可以继续扩展 slice。</p>
+
+<p>所以总结:</p>
+
+<p>length 决定了当前slice可访问的元素个数
+capacity 决定了底层数组的最大容量,也决定了slice通过append能扩展的范围
+一般length==capacity时性能最优,但length&lt;capacity可以提供动态扩展的性能
+两者规定了slice当前的状态和未来的增长能力。</p>
+
+<p>请问如果我想要扩展一个slice的长度，但不改变底层数组的容量，应该怎么做呢？</p>
+
+<p>如果你想扩展slice的长度(len),但不想改变slice的容量(cap),可以使用copy函数来实现:</p>
+
+<pre><code>func extendSlice(s []T) []T {
+  length := len(s) 
+  capacity := cap(s)
+
+  // 新建一个长度加1,容量保持不变的新slice
+  newSlice := make([]T, length+1, capacity) 
+
+  // 将原slice中的元素copy到新slice
+  copy(newSlice, s)
+
+  return newSlice
+}
+</code></pre>
+
+<p>具体步骤:</p>
+
+<p>计算原slice的长度和容量</p>
+
+<p>使用make新建一个长度加1,但容量保持原容量大小的新slice</p>
+
+<p>使用copy函数将原slice中的元素copy到新slice</p>
+
+<p>返回新的扩容后但容量没变的slice</p>
+
+<p>这样做的好处是:</p>
+
+<p>扩容slice长度但不触发底层数组重新分配,避免了额外开销
+容量保持不变, ensures future appends to the slice will not need to reallocate
+一旦容量用完,之后append还是会自动扩容
+所以通过copy函数来扩展长度可以很好地控制slice的长度和容量变化。</p>
+<p>本文链接：<a href="https://iokde.com/post/golang-make-slice.html">https://iokde.com/post/golang-make-slice.html</a>，<a href="https://iokde.com/post/golang-make-slice.html#comments">参与评论 »</a></p>]]>
+            </description>
+        </item>
+        
+        <item>
+            <title>mac上如何使用 ffmpeg 命令将 m4a文件转为 mp3</title>
+            <link>https://iokde.com/post/mac-os-m1-convert-m4a-file-to-mp3.html</link>
+            <comments>https://iokde.com/post/mac-os-m1-convert-m4a-file-to-mp3.html#comments</comments>
+            <guid>https://iokde.com/post/mac-os-m1-convert-m4a-file-to-mp3.html</guid>
+            <description>
+                <![CDATA[<blockquote>
+<p>mac 上如何使用 ffmpeg 命令将 m4a文件转为 mp3</p>
+
+<p>在 Mac 上使用 FFmpeg 将 M4A 文件转换为 MP3 文件的命令如下:</p>
+
+<pre><code>ffmpeg -i input.m4a output.mp3
+</code></pre>
+
+<p>参数说明:</p>
+
+<p>-i input.m4a:指定输入文件,输入文件的格式为 M4A
+output.mp3:指定输出文件,输出文件的格式为 MP3
+例如:</p>
+
+<p>这条命令将目录下的 song.m4a 文件转换成 song.mp3 格式的文件。</p>
+
+<p>一些需要注意的点:</p>
+
+<p>输出格式默认为 MP3,也可以使用 -f mp3明确指定输出格式
+FFmpeg 会自动检测输出比特率,可以使用 -b:a 128k 指定比特率为128kbps
+M4A 和 MP3 的采样率可能不同,ffmpeg 会自动适配
+输出文件名可以自定义,但需要指定完整路径,否则会保存在当前目录
+所以一般来说,上面的简单命令就可以很好地完成 M4A 到 MP3 的格式转换任务。</p>
+<p>本文链接：<a href="https://iokde.com/post/mac-os-m1-convert-m4a-file-to-mp3.html">https://iokde.com/post/mac-os-m1-convert-m4a-file-to-mp3.html</a>，<a href="https://iokde.com/post/mac-os-m1-convert-m4a-file-to-mp3.html#comments">参与评论 »</a></p>]]>
+            </description>
+        </item>
+        
+        <item>
+            <title> superset如何按照日期数量聚合查询</title>
+            <link>https://iokde.com/post/superset-hive-query-group-by-data.html</link>
+            <comments>https://iokde.com/post/superset-hive-query-group-by-data.html#comments</comments>
+            <guid>https://iokde.com/post/superset-hive-query-group-by-data.html</guid>
+            <description>
+                <![CDATA[<blockquote>
+<p>需要写一个 sql 从表 ods.ods_cc_ad_log 查询 dt 范围是 &lsquo;2023-09-01&rsquo; 到 &lsquo;2023-09-08&rsquo; 每一天的creative_id 的总数，麻烦给出具体的 sql 语句:
+以下是你需要的SQL语句:</p>
+
+<pre><code>    SELECT 
+    DATE(created_time) AS dt,
+    COUNT(DISTINCT creative_id) AS creative_id_count
+FROM ods.ods_cc_ad_log
+WHERE DATE(created_time) BETWEEN '2023-09-01' AND '2023-09-08'
+GROUP BY 1
+ORDER BY 1;
+</code></pre>
+
+<p>这个SQL语句做了以下操作:</p>
+
+<p>FROM子句从ods.ods_cc_dsp_log表查询数据
+WHERE子句过滤created_time字段处于&rsquo;2023-09-01&rsquo;到&rsquo;2023-09-08&rsquo;之间的记录
+SELECT子句选择created_time日期字段(用DATE函数提取日期部分)和creative_id字段进行分组计数后的值
+GROUP BY子句按日期分组
+ORDER BY子句按日期升序排序结果
+这样就可以查询指定日期范围内每一天creative_id的总数了</p>
+
+<p>下面是有关 SQL 查询的一些其他详细信息：</p>
+
+<p>DATE（created_time） 仅从created_time列中提取日期部分，因此我们可以按日期而不是按完整日期时间进行分组和计数。</p>
+
+<p>COUNT（非重复creative_id）仅统计每个日期组中的唯一/不同creative_id值，而不是所有行。这样可以准确统计每天看到的不同广告素材 ID 的数量。</p>
+
+<p>在“2023-09-01”和“2023-09-08”之间，将行筛选为指定的 8 天范围。开始日期和结束日期都包括在内。</p>
+
+<p>GROUP BY 1 按所选的第一列（即 DATE（created_time） 别名）对结果进行分组。我们也可以显式使用 GROUP BY DATE（created_time）。</p>
+
+<p>ORDER BY 1 按升序日期顺序对结果进行排序，因此输出按逻辑时间顺序排列。</p>
+
+<p>这将返回 8 行，指定范围内的每个日期对应一行，其中包含该日期的日期和广告素材 ID 计数。</p>
+
+<p>像 COUNT 这样的聚合函数会忽略 NULL 值。因此，任何缺少creative_id的行都不会影响计数。</p>
+
+<p>created_time和creative_id上的索引可以通过更有效地启用筛选和聚合来提高大型表的性能。</p>
+
+<p>将日期格式化为“YYYY-MM-DD”可确保它正确排序为日期而不是字符串。</p>
+
+<p>如果查询结构或逻辑的任何部分需要更多解释，请告诉我！</p>
+
+<p>你能更详细地解释一下COUNT（DISTINCT creative_id）函数是如何工作的吗？
+Claude-instant:
+当然，这里有一个关于COUNT（DISTINCT）如何工作的更详细的解释：</p>
+
+<p>COUNT 通常只计算每组中的总行数。这包括重复值。</p>
+
+<p>COUNT（DISTINCT） 改为仅计算表达式内部的唯一/不同值。</p>
+
+<p>它的工作原理是首先识别每个日期组中creative_id的所有唯一值。</p>
+
+<p>然后计算有多少个唯一值。</p>
+
+<p>例如，如果在 2023-09-01 上有以下行：</p>
+
+<p>广告素材 ID
+1
+1
+2
+3</p>
+
+<p>COUNT 将返回 4，因为它对所有行进行计数
+COUNT（非重复creative_id）将首先看到唯一值为1,2,3
+然后它将返回 3，因为有 3 个不同/唯一的广告素材 ID
+这样可以准确统计不同的广告素材 ID 的数量，而不是包含重复项的总行数。
+数据库通过内部执行排序、散列或索引等操作来评估 COUNT（DISTINCT），以有效地识别组中的唯一值。
+因此，它避免了执行昂贵的 DISTINCT 查询，然后是聚合，并在“后台”执行所有查询以获得最佳性能。
+让我知道 COUNT（DISTINCT） 如何识别和计算组内唯一值的任何部分是否需要更多解释！</p>
+
+<p>Here are some additional details about the SQL query:
+DATE(created_time) extracts just the date part from the created_time column, so we can group and count by date rather than by full datetime.</p>
+
+<p>COUNT(DISTINCT creative_id) counts only unique/distinct creative_id values within each date group, rather than all rows. This gives an accurate count of how many different creative IDs were seen each day.</p>
+
+<p>BETWEEN &lsquo;2023-09-01&rsquo; AND &lsquo;2023-09-08&rsquo; filters the rows to just the 8 day range specified. Both the start and end dates are inclusive.</p>
+
+<p>GROUP BY 1 groups the results by the first column selected, which is the DATE(created_time) alias. We could also explicitly use GROUP BY DATE(created_time).</p>
+
+<p>ORDER BY 1 sorts the results in ascending date order, so the output is in logical chronological sequence.</p>
+
+<p>This would return 8 rows, one for each date in the specified range, with the date and creative ID count for that date.</p>
+
+<p>Aggregate functions like COUNT ignore NULL values. So any rows missing the creative_id would not affect the counts.</p>
+
+<p>Indexes on created_time and creative_id could improve performance for large tables by enabling filtering and aggregation more efficiently.</p>
+
+<p>Formatting the date as &lsquo;YYYY-MM-DD&rsquo; ensures it properly sorts as a date rather than a string.</p>
+
+<p>Can you explain how the COUNT(DISTINCT creative_id) function works in more detail?</p>
+
+<p>Claude-instant-100k:</p>
+
+<p>Sure, here&rsquo;s a more detailed explanation of how COUNT(DISTINCT) works:</p>
+
+<p>COUNT normally just counts the total number of rows in each group. This includes duplicate values.</p>
+
+<p>COUNT(DISTINCT) instead counts only unique/distinct values of the expression inside.</p>
+
+<p>It works by first identifying all unique values of creative_id within each date group.</p>
+
+<p>Then it counts how many unique values there are.</p>
+
+<p>For example, if on 2023-09-01 there were rows with:</p>
+
+<p>Creative ID
+1
+1
+2
+3</p>
+
+<p>COUNT would return 4, since it counts all rows</p>
+
+<p>COUNT(DISTINCT creative_id) would first see the unique values are 1, 2, 3</p>
+
+<p>It would then return 3, since there are 3 distinct/unique creative IDs</p>
+
+<p>This gives an accurate count of how many different creative IDs, rather than total rows which could include duplicates.</p>
+
+<p>The database evaluates COUNT(DISTINCT) by internally performing operations like sorting, hashing or indexing to efficiently identify unique values within groups.</p>
+
+<p>So it avoids doing costly DISTINCT queries followed by aggregate, and performs it all &ldquo;under the hood&rdquo; for best performance.</p>
+
+<p>Let me know if any part of how COUNT(DISTINCT) identifies and counts unique values within groups needs more explanation!</p>
+<p>本文链接：<a href="https://iokde.com/post/superset-hive-query-group-by-data.html">https://iokde.com/post/superset-hive-query-group-by-data.html</a>，<a href="https://iokde.com/post/superset-hive-query-group-by-data.html#comments">参与评论 »</a></p>]]>
+            </description>
+        </item>
+        
+        <item>
+            <title>mysql 如何修改 update_at 字段在更新的时候自动设置为当前时间戳</title>
+            <link>https://iokde.com/post/mysql-auto-set-update-field.html</link>
+            <comments>https://iokde.com/post/mysql-auto-set-update-field.html#comments</comments>
+            <guid>https://iokde.com/post/mysql-auto-set-update-field.html</guid>
+            <description>
+                <![CDATA[<blockquote>
+<p>要在 MySQL 中实现 update_at 字段在更新时自动设置为当前时间戳，你可以使用触发器（Trigger）来实现。触发器是一种在数据库中定义的特殊存储过程，它会在指定的操作（如更新）发生时被自动触发执行。</p>
+
+<p>以下是在 MySQL 中创建触发器的一般步骤：</p>
+
+<p>创建一个包含 update_at 字段的表，如果你已经有这样的表可以跳过此步骤。
+sql
+CREATE TABLE your_table (
+  id INT PRIMARY KEY,
+  data VARCHAR(255),
+  update_at TIMESTAMP
+);
+创建一个 BEFORE UPDATE 类型的触发器，当更新操作发生时，触发器中的代码将被执行。</p>
+
+<pre><code>DELIMITER $$
+CREATE TRIGGER update_at_trigger
+BEFORE UPDATE ON your_table
+FOR EACH ROW
+BEGIN
+  SET NEW.update_at = CURRENT_TIMESTAMP();
+END$$
+DELIMITER ;
+</code></pre>
+
+<p>在这个触发器中，BEFORE UPDATE 指定了触发器在更新操作之前触发，your_table 是触发器所属的表名，FOR EACH ROW 表示对每一行进行触发，SET NEW.update_at = CURRENT_TIMESTAMP(); 将 update_at 字段设置为当前时间戳。</p>
+
+<p>现在，当你对表中的数据进行更新操作时，update_at 字段将自动被设置为当前时间戳。</p>
+
+<pre><code>UPDATE your_table SET data = 'New data' WHERE id =1;
+</code></pre>
+
+<p>要在更新表时自动填充当前时间戳，可以使用 ALTER TABLE 语句结合触发器来实现。下面是如何使用 ALTER TABLE 设置 update_at 字段的自动填充功能的步骤：</p>
+
+<p>首先，使用 ALTER TABLE 语句添加一个 update_at 字段到你的表中，如果还没有该字段。假设表名为 your_table，字段类型为 TIMESTAMP，可以执行如下命令：</p>
+
+<pre><code>ALTER TABLE your_table
+ADD COLUMN update_at TIMESTAMP;
+</code></pre>
+
+<p>接下来，创建一个触发器（trigger），用于在更新表时自动填充 update_at 字段。触发器会在 UPDATE 操作执行前或后触发，我们可以选择在 BEFORE UPDATE 触发时更新 update_at 字段。假设你的表有一个主键列名为 id，触发器可以通过以下 SQL 语句创建：</p>
+
+<pre><code>CREATE TRIGGER update_at_trigger
+BEFORE UPDATE ON your_table
+FOR EACH ROW
+SET NEW.update_at = CURRENT_TIMESTAMP;
+</code></pre>
+
+<p>在这个触发器中，我们将 NEW.update_at 设置为当前时间戳 CURRENT_TIMESTAMP。</p>
+
+<p>现在，当你更新 your_table 表中的任何记录时，update_at 字段将自动填充为当前时间。
+需要注意的是，以上的方法适用于 MySQL 数据库。如果你使用的是其他数据库，语法和步骤可能会有所不同。请确保你的数据库支持触发器功能，并根据具体数据库的语法和规范进行相应的调整。</p>
+<p>本文链接：<a href="https://iokde.com/post/mysql-auto-set-update-field.html">https://iokde.com/post/mysql-auto-set-update-field.html</a>，<a href="https://iokde.com/post/mysql-auto-set-update-field.html#comments">参与评论 »</a></p>]]>
+            </description>
+        </item>
+        
+        <item>
+            <title>寻找海口市琼山区龙榜村老赖吴静</title>
+            <link>https://iokde.com/post/xun-zhao-lao-lai-wu-jing.html</link>
+            <comments>https://iokde.com/post/xun-zhao-lao-lai-wu-jing.html#comments</comments>
+            <guid>https://iokde.com/post/xun-zhao-lao-lai-wu-jing.html</guid>
+            <description>
+                <![CDATA[<blockquote>
+<p>海南省海口市美兰区人民法院公告
+（2021）琼0108执1003号</p>
+
+<p>吴静：
+本院在执行申请执行人***与被执行人吴静合同纠纷一案，因你下落不明，依照《中华人民共和国民事诉讼法》第九十二条的规定，现向你公告送达本院（2021）琼0108执1003号执行通知书、报告财产令，执行通知书责令你自执行通知书送达之日起七日内履行下列义务：一、向申请执行人退还投资款50000元并支付利息损失（另计）；二、加倍支付迟延履行期间的债务利息(另计)；三、负担案件受理费1065.75元；四、向本院缴纳执行费665.99元(暂计)。如实向本院报告当前以及收到执行通知书之日前一年的财产情况。逾期不报告，或者虚假报告，本院依法将被执行人纳入失信被执行人名单、采取限制高消费和限制出境等措施，并予以罚款、拘留；情节严重的，移送公安机关，依法追究刑事责任。本公告自发出之日起，经过六十日即视为送达。</p>
+
+<p>特此公告 二〇二一年三月十日</p>
+
+<p>海南省海口市美兰区人民法院公告
+（2021）琼0108执1003号之一
+吴静：
+   本院在执行申请执行人***与被执行人你合同纠纷一案中，因你地址不详，下落不明，依照《中华人民共和国民事诉讼法》第九十二条的规定，向你公告送达本院（2021）琼0108执1003号限制消费令，责令你不得违反限制消费令的规定。如有违反，依法《中华人民共和国民事诉讼法》第一百一十一条的规定，予以拘留、罚款；情节严重，构成犯罪的，追究刑事责任。同时向你公告送达本院（2021）琼0108执1003号失信决定书，该决定书裁明将：被执行人吴静（身份证号码：460004198709051428）纳入失信被执行人名单。</p>
+
+<p>本公告自发出之日起，经过六十日即视为送达。
+特此公告</p>
+
+<p>二0二一年五月十七日</p>
+
+<p>被执行人：吴静
+身份证号码：460004198709051428
+手机号：18689518277
+住址：海口市琼山区红旗镇龙榜村委会龙榜村
+性别：女
+案情介绍：申请执行人***与被执行人吴静买卖合同纠纷一案，本院（2021）琼0108民初7872号民事判决书已发生法律效力，申请执行人向本院申请强制执行，本院于2021年6月9日立案，被执行人吴静未履行其法定义务。
+执行案号：（2021）琼0107执2315号
+生效法律文书确定义务：一、向申请执行人退还投资款50000元并支付利息损失（另计）；二、加倍支付迟延履行期间的债务利息(另计)；三、负担案件受理费1065.75元；四、向本院缴纳执行费665.99元(暂计)。。
+联系举报 线索： 杜法官  0898-65917390
+<img src="https://p3-sign.toutiaoimg.com/pgc-image/b1f8192886ea4c55af9857feeac97994~noop.image?_iz=58558&amp;from=article.pc_detail&amp;lk3s=953192f4&amp;x-expires=1704803300&amp;x-signature=lR2c3PJmpfI2PwhaBaXuhBjKShs%3D" alt="海口市美兰区失信被执行人吴静" /></p>
+
+<p>穷山恶水出刁民，琼山真是个好地方！ 居然有这么个老赖，法院强制执行好多次每次都是直接终本也没人管，难怪有人说海南是个刚开化的地方；</p>
+<p>本文链接：<a href="https://iokde.com/post/xun-zhao-lao-lai-wu-jing.html">https://iokde.com/post/xun-zhao-lao-lai-wu-jing.html</a>，<a href="https://iokde.com/post/xun-zhao-lao-lai-wu-jing.html#comments">参与评论 »</a></p>]]>
+            </description>
+        </item>
+        
+        <item>
+            <title>如何做一个 gpt 的扩展程序来帮你读书</title>
+            <link>https://iokde.com/post/gpt-extention.html</link>
+            <comments>https://iokde.com/post/gpt-extention.html#comments</comments>
+            <guid>https://iokde.com/post/gpt-extention.html</guid>
+            <description>
+                <![CDATA[<blockquote>
+<p>Ask：如何做一个gpt 的扩展，在本地运行，这个扩展能够帮我阅读书籍或者论文，然后帮我总结提炼书中的重点内容，变为一个大纲，请问怎么实现这样的功能</p>
+
+<p>Answer：要实现这样的功能，你可以按照以下步骤进行：</p>
+
+<p>获取数据：收集大量的书籍或论文数据，并将其转换成可供模型训练的文本格式。你可以从公开的数据集、开放的文献数据库或其他渠道获取数据。</p>
+
+<p>数据预处理：对获取的文本数据进行预处理。这包括分句、分词、去除停用词、标记化等操作。你可以使用现有的自然语言处理工具库，如NLTK、spaCy等，来帮助你完成这些预处理任务。</p>
+
+<p>模型训练：使用预处理后的数据来训练一个GPT模型。你可以使用现有的GPT模型实现，如GPT-3或GPT-Neo等，也可以尝试使用开源实现或自己训练一个模型。</p>
+
+<p>构建扩展：根据你的需求，构建一个可以在本地运行的扩展程序。你可以使用编程语言和框架，如Python和Flask，来开发扩展。该扩展需要接收用户输入的书籍或论文文本，并将其传递给GPT模型进行处理。</p>
+
+<p>文本摘要生成：在接收到用户输入后，将文本输入GPT模型，并使用生成文本的功能，让模型生成摘要或大纲。你可以设置模型生成的文本长度，以控制生成的大纲的详细程度。</p>
+
+<p>结果展示：将模型生成的摘要或大纲结果返回给用户。你可以选择以文本形式展示，或者进一步对结果进行处理和可视化，以提供更好的阅读体验。</p>
+
+<p>需要注意的是，以上步骤仅为一种实现思路，具体实现的方式和细节可能会因你的需求和技术选择而有所不同。另外，GPT模型的训练和扩展的开发都需要一定的计算资源和技术能力，所以在实施之前，你需要确保自己具备相关的资源和技术基础。</p>
+<p>本文链接：<a href="https://iokde.com/post/gpt-extention.html">https://iokde.com/post/gpt-extention.html</a>，<a href="https://iokde.com/post/gpt-extention.html#comments">参与评论 »</a></p>]]>
+            </description>
+        </item>
+        
+        <item>
+            <title>部署你的私人 ChatGPT 网页应用</title>
+            <link>https://iokde.com/post/your-self-chatgpt.html</link>
+            <comments>https://iokde.com/post/your-self-chatgpt.html#comments</comments>
+            <guid>https://iokde.com/post/your-self-chatgpt.html</guid>
+            <description>
+                <![CDATA[<blockquote>
+<p>最近看到同事自己搞了个 gpt 网页应用，发现是用这个搭建的，mark 下</p>
+
+<p><a href="https://zhuanlan.zhihu.com/p/622497294" rel="nofollow">ChatGPT Next Web——一键免费部署你的私人 ChatGPT 网页应用</a></p>
+<p>本文链接：<a href="https://iokde.com/post/your-self-chatgpt.html">https://iokde.com/post/your-self-chatgpt.html</a>，<a href="https://iokde.com/post/your-self-chatgpt.html#comments">参与评论 »</a></p>]]>
+            </description>
+        </item>
+        
+        <item>
+            <title>golang修改 url 路径中的查询参数</title>
+            <link>https://iokde.com/post/change-url-query-params-by-golang.html</link>
+            <comments>https://iokde.com/post/change-url-query-params-by-golang.html#comments</comments>
+            <guid>https://iokde.com/post/change-url-query-params-by-golang.html</guid>
+            <description>
+                <![CDATA[<blockquote>
+<p>请编写一个函数  函数能对 urlpath 中的查询参数进行修改<br />
+ChatGPT
+当然可以！以下是一个使用 Go 语言编写的函数示例，该函数可以修改 URL 路径中的查询参数：</p>
+
+<pre><code>package main
+
+import (
+    &quot;fmt&quot;
+    &quot;net/url&quot;
+    &quot;strings&quot;
+)
+
+func modifyQueryParameter(urlPath, paramKey, paramValue string) (string, error) {
+    parsedURL, err := url.Parse(urlPath)
+    if err != nil {
+        return &quot;&quot;, err
+    }
+
+    queryValues, err := url.ParseQuery(parsedURL.RawQuery)
+    if err != nil {
+        return &quot;&quot;, err
+    }
+
+    // Update or add the parameter
+    queryValues.Set(paramKey, paramValue)
+
+    parsedURL.RawQuery = queryValues.Encode()
+    return parsedURL.String(), nil
+}
+
+func main() {
+    urlPath := &quot;https://example.com/path?param1=value1&amp;param2=value2&quot;
+    paramKey := &quot;param1&quot;
+    paramValue := &quot;new_value&quot;
+
+    newURL, err := modifyQueryParameter(urlPath, paramKey, paramValue)
+    if err != nil {
+        fmt.Println(&quot;Error:&quot;, err)
+        return
+    }
+
+    fmt.Println(&quot;Modified URL:&quot;, newURL)
+}
+</code></pre>
+
+<p>这个示例代码定义了一个名为 modifyQueryParameter 的函数，它接受三个参数：urlPath 是原始的 URL 路径，paramKey 是要修改或添加的查询参数的键，paramValue 是要设置的查询参数的值。函数会返回修改后的 URL 字符串。</p>
+
+<p>在 main 函数中，你可以看到如何使用这个函数来修改 URL 路径中的查询参数。将示例中的 urlPath、paramKey 和 paramValue 替换为你实际想要修改的值，然后运行代码即可。</p>
+
+<p>请确保在使用代码之前，先安装 Go 编程环境，并根据需要进行适当的修改和测试。</p>
+<p>本文链接：<a href="https://iokde.com/post/change-url-query-params-by-golang.html">https://iokde.com/post/change-url-query-params-by-golang.html</a>，<a href="https://iokde.com/post/change-url-query-params-by-golang.html#comments">参与评论 »</a></p>]]>
+            </description>
+        </item>
+        
+        <item>
+            <title>chatgpt开发使用技术</title>
+            <link>https://iokde.com/post/chatgpt-detail.html</link>
+            <comments>https://iokde.com/post/chatgpt-detail.html#comments</comments>
+            <guid>https://iokde.com/post/chatgpt-detail.html</guid>
+            <description>
+                <![CDATA[<blockquote>
+<p><strong>You:</strong></p>
+
+<p>chatgpt在开发过程中用了哪些技术</p>
+
+<hr />
+
+<p><strong>ChatGPT:</strong></p>
+
+<p>ChatGPT是基于GPT-3.5架构的，是由OpenAI开发的人工智能模型之一。在其开发过程中，涉及了多种技术和方法。以下是一些可能用于开发ChatGPT的关键技术：</p>
+
+<ol>
+<li><p><strong>Transformer架构：</strong> ChatGPT基于Transformer架构，这是一种用于处理序列数据的深度学习架构。Transformer使用自注意力机制来捕捉输入序列中不同位置之间的关系，有助于处理长距离依赖性。</p></li>
+
+<li><p><strong>预训练和微调：</strong> ChatGPT通过预训练和微调两个阶段进行训练。在预训练阶段，模型在大规模文本数据上进行训练，学习语言的通用特征。在微调阶段，模型在特定任务上进行进一步的训练，以适应特定的应用，如生成对话。</p></li>
+
+<li><p><strong>大规模数据集：</strong> 模型需要大量的文本数据来进行预训练，这些数据可以包括互联网上的各种文本资源，如网页、书籍、文章、对话等。</p></li>
+
+<li><p><strong>自注意力机制：</strong> Transformer模型的核心是自注意力机制，它允许模型在处理输入序列时分配不同位置的重要性权重，从而更好地捕捉上下文信息。</p></li>
+
+<li><p><strong>注意力头（Attention Heads）：</strong> 在Transformer中，多个注意力头并行处理输入数据，允许模型在不同的注意力机制下学习不同层次的特征表示。</p></li>
+
+<li><p><strong>位置编码：</strong> 由于Transformer没有内置位置信息，位置编码被引入以帮助模型理解输入序列中不同位置的信息。</p></li>
+
+<li><p><strong>解码策略：</strong> 对话生成模型通常使用不同的解码策略，如贪婪解码、束搜索（beam search）等，以生成连贯和合理的输出。</p></li>
+
+<li><p><strong>强化学习：</strong> 在微调阶段，强化学习可以用于优化模型生成更好对话的能力，通过在对话中使用人类生成的响应作为正向示例进行训练。</p></li>
+
+<li><p><strong>数据过滤和后处理：</strong> 对生成的输出进行过滤和后处理可以帮助提高模型的输出质量，确保生成的文本流畅、合理且有意义。</p></li>
+</ol>
+
+<p>总之，开发ChatGPT涉及了深度学习、自然语言处理、神经网络架构、数据处理和后处理等多个领域的技术。这些技术的结合使得ChatGPT成为一个可以进行自然语言对话的强大模型。请注意，我以上述信息为基础，但具体的开发细节可能在我知识截至日之后有所发展。</p>
+
+<hr />
+
+<p><strong>You:</strong></p>
+
+<p>chatgpt 开发过程使用的数据库是什么数据库</p>
+
+<hr />
+
+<p><strong>ChatGPT:</strong></p>
+
+<p>关于ChatGPT的具体开发细节，包括使用的数据库等信息，我所知有限，无法提供详细信息。通常情况下，开发一个类似的大规模深度学习模型可能涉及多种数据源和存储技术，但具体使用了哪些数据库或数据存储方式，我无法提供确切信息。</p>
+
+<p>在开发类似的人工智能模型时，可能会使用多种数据源，包括互联网上的文本、对话数据、书籍、文章等。这些数据可能会通过数据流水线进行处理、清洗和预处理，然后用于模型的预训练和微调阶段。</p>
+
+<p>如果您对ChatGPT的开发过程有更多详细的疑问，建议您参考OpenAI官方的文档、研究论文或相关的技术博客，以获取更准确和详尽的信息。</p>
+
+<hr />
+
+<p><strong>You:</strong></p>
+
+<p>chatgpt 使用的向量数据库名称是什么</p>
+
+<hr />
+
+<p><strong>ChatGPT:</strong></p>
+
+<p>根据我所掌握的信息，ChatGPT使用了名为&rdquo;ChatGPT Data Store&rdquo;的向量数据库。这个数据库被设计用来存储和检索与对话生成任务相关的向量数据，以支持模型的训练和推断过程。然而，请注意，我无法提供关于该数据库的详细技术规格或具体实现细节，因为这些信息可能在我知识截至日之后有所发展。如果您对ChatGPT的数据库细节有进一步的疑问，建议您参考OpenAI官方的文档或相关技术资源。</p>
+<p>本文链接：<a href="https://iokde.com/post/chatgpt-detail.html">https://iokde.com/post/chatgpt-detail.html</a>，<a href="https://iokde.com/post/chatgpt-detail.html#comments">参与评论 »</a></p>]]>
+            </description>
+        </item>
+        
+    </channel>
+</rss>
